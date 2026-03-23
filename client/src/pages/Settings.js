@@ -1,281 +1,263 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
-export const Settings = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+export const Settings = ({ onLogout }) => {
+  const { user, updateProfile } = useAuth();
+  const { darkMode, toggleTheme } = useTheme();
   const [editMode, setEditMode] = useState(false);
-  const [formData, setFormData] = useState({});
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    employeeId: user?.employeeId || '',
+    gender: user?.gender || 'male',
+    joiningDate: user?.joiningDate || '',
+  });
+  const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('hrUser');
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
-      setFormData(userData);
-    }
-  }, []);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
-  const handleProfileUpdate = (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    try {
-      localStorage.setItem('hrUser', JSON.stringify(formData));
-      setUser(formData);
-      setEditMode(false);
-      setSuccess('Profile updated successfully!');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.message);
-    }
+  const handleSave = () => {
+    updateProfile(formData);
+    setEditMode(false);
+    setMessage('Profile updated successfully');
+    setTimeout(() => setMessage(''), 3000);
   };
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
-      localStorage.removeItem('hrUser');
-      navigate('/login');
+      onLogout();
     }
   };
-
-  const handleChangePassword = (e) => {
-    e.preventDefault();
-    const currentPassword = e.target.currentPassword.value;
-    const newPassword = e.target.newPassword.value;
-    const confirmPassword = e.target.confirmPassword.value;
-
-    if (currentPassword !== user.password) {
-      setError('Current password is incorrect');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError('New passwords do not match');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
-    const updatedUser = { ...user, password: newPassword };
-    localStorage.setItem('hrUser', JSON.stringify(updatedUser));
-    setUser(updatedUser);
-    setError('');
-    setSuccess('Password changed successfully!');
-    e.target.reset();
-    setTimeout(() => setSuccess(''), 3000);
-  };
-
-  if (!user) {
-    return <div className="text-center py-12 text-gray-600 dark:text-gray-400">Loading...</div>;
-  }
 
   return (
-    <div className="space-y-6">
+    <div className={`p-8 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Settings</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">Manage your account settings and preferences</p>
+      <div className="mb-8">
+        <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          Settings
+        </h1>
+        <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-2`}>
+          Manage your account and preferences
+        </p>
       </div>
 
-      {/* Success/Error Messages */}
-      {success && (
-        <div className="p-4 bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-200 rounded-lg">
-          ✅ {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 rounded-lg">
-          ❌ {error}
+      {/* Success Message */}
+      {message && (
+        <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+          {message}
         </div>
       )}
 
-      {/* Profile Settings */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Account Information</h2>
-          <button
-            onClick={() => setEditMode(!editMode)}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition font-semibold"
-          >
-            {editMode ? '❌ Cancel' : '✏️ Edit Profile'}
-          </button>
-        </div>
-
-        {editMode ? (
-          <form onSubmit={handleProfileUpdate} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Full Name */}
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Full Name</label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Email</label>
-                <input
-                  type="email"
-                  value={formData.email || ''}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-
-              {/* Employee ID */}
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Employee ID</label>
-                <input
-                  type="text"
-                  value={formData.employeeId || ''}
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                />
-              </div>
-
-              {/* Department */}
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Department</label>
-                <input
-                  type="text"
-                  value={formData.department || ''}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-
-              {/* Gender */}
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Gender</label>
-                <select
-                  value={formData.gender || ''}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              {/* Joining Date */}
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Joining Date</label>
-                <input
-                  type="date"
-                  value={formData.joiningDate || ''}
-                  onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Settings */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Account Settings */}
+          <div className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Account Information
+              </h2>
+              <button
+                onClick={() => {
+                  if (editMode) {
+                    setFormData({
+                      name: user?.name || '',
+                      email: user?.email || '',
+                      employeeId: user?.employeeId || '',
+                      gender: user?.gender || 'male',
+                      joiningDate: user?.joiningDate || '',
+                    });
+                  }
+                  setEditMode(!editMode);
+                }}
+                className={`px-4 py-2 rounded-lg ${
+                  editMode
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                } transition-colors`}
+              >
+                {editMode ? 'Cancel' : 'Edit'}
+              </button>
             </div>
 
+            {user && (
+              <div className="space-y-4">
+                {/* User Avatar */}
+                <div className="flex justify-center mb-6">
+                  <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white">
+                    <span className="text-4xl font-bold">{user.name?.charAt(0).toUpperCase()}</span>
+                  </div>
+                </div>
+
+                {/* Full Name */}
+                <div>
+                  <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                    Full Name
+                  </label>
+                  {editMode ? (
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 rounded-lg border ${
+                        darkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    />
+                  ) : (
+                    <p className={`px-4 py-2 ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+                      {user.name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                    Email Address
+                  </label>
+                  <p className={`px-4 py-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {user.email}
+                  </p>
+                  <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
+                    Email cannot be changed
+                  </p>
+                </div>
+
+                {/* Employee ID */}
+                <div>
+                  <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                    Employee ID
+                  </label>
+                  <p className={`px-4 py-2 ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+                    {user.employeeId}
+                  </p>
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                    Gender
+                  </label>
+                  {editMode ? (
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 rounded-lg border ${
+                        darkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    >
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  ) : (
+                    <p className={`px-4 py-2 capitalize ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+                      {user.gender}
+                    </p>
+                  )}
+                </div>
+
+                {/* Joining Date */}
+                <div>
+                  <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                    Joining Date
+                  </label>
+                  <p className={`px-4 py-2 ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+                    {new Date(user.joiningDate).toLocaleDateString()}
+                  </p>
+                </div>
+
+                {/* Account Created */}
+                <div>
+                  <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                    Account Created
+                  </label>
+                  <p className={`px-4 py-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+
+                {/* Save Button */}
+                {editMode && (
+                  <button
+                    onClick={handleSave}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 transition-all font-semibold mt-4"
+                  >
+                    Save Changes
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sidebar Settings */}
+        <div className="space-y-6">
+          {/* Theme Settings */}
+          <div className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+            <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'} mb-4`}>
+              Theme
+            </h3>
             <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition"
+              onClick={toggleTheme}
+              className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold flex items-center justify-center gap-2"
             >
-              Save Changes
+              {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
             </button>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">Full Name</p>
-                <p className="text-gray-900 dark:text-white text-lg font-semibold">{user.name}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">Email</p>
-                <p className="text-gray-900 dark:text-white text-lg font-semibold">{user.email}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">Employee ID</p>
-                <p className="text-gray-900 dark:text-white text-lg font-semibold">{user.employeeId}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">Department</p>
-                <p className="text-gray-900 dark:text-white text-lg font-semibold">{user.department || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">Gender</p>
-                <p className="text-gray-900 dark:text-white text-lg font-semibold">{user.gender || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">Joining Date</p>
-                <p className="text-gray-900 dark:text-white text-lg font-semibold">{user.joiningDate || 'N/A'}</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Change Password */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Change Password</h2>
-
-        <form onSubmit={handleChangePassword} className="space-y-4">
-          <div>
-            <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Current Password</label>
-            <input
-              type="password"
-              name="currentPassword"
-              placeholder="Enter your current password"
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-              required
-            />
           </div>
 
-          <div>
-            <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">New Password</label>
-            <input
-              type="password"
-              name="newPassword"
-              placeholder="Enter new password"
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-              required
-            />
+          {/* Security Settings */}
+          <div className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+            <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'} mb-4`}>
+              Security
+            </h3>
+            <button className="w-full py-3 px-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-semibold opacity-50 cursor-not-allowed">
+                🔑 Change Password
+            </button>
+            <p className={`text-xs mt-2 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+              Feature coming soon
+            </p>
           </div>
 
-          <div>
-            <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Confirm New Password</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              placeholder="Confirm new password"
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-              required
-            />
+          {/* Logout */}
+          <div className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg border-2 border-red-200 dark:border-red-900`}>
+            <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'} mb-4`}>
+              Logout
+            </h3>
+            <button
+              onClick={handleLogout}
+              className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-lg hover:from-red-700 hover:to-pink-700 transition-all font-semibold"
+            >
+              🚪 Logout
+            </button>
+            <p className={`text-xs mt-2 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+              You will be logged out from your account
+            </p>
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition"
-          >
-            Update Password
-          </button>
-        </form>
-      </div>
-
-      {/* Logout Section */}
-      <div className="bg-red-50 dark:bg-red-900/20 rounded-xl shadow-lg p-8 border border-red-200 dark:border-red-800">
-        <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-3">Logout</h2>
-        <p className="text-gray-700 dark:text-gray-300 mb-6">Sign out from your HR Portal account. You'll need to login again to access your account.</p>
-        <button
-          onClick={handleLogout}
-          className="bg-red-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-red-700 transition"
-        >
-          🚪 Logout
-        </button>
+          {/* Help */}
+          <div className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+            <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'} mb-4`}>
+              Help
+            </h3>
+            <button className="w-full py-3 px-4 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors font-semibold">
+              ❓ Contact Support
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

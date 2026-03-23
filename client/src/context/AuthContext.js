@@ -1,80 +1,115 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 
 export const AuthContext = createContext();
 
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Check if user is logged in on mount
+  // Load users from localStorage on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('hrUser');
+    const storedUsers = localStorage.getItem('hr_users');
+    const storedUser = localStorage.getItem('hr_current_user');
+    
+    if (storedUsers) {
+      setUsers(JSON.parse(storedUsers));
+    }
+    
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
+    
     setLoading(false);
   }, []);
 
-  const signup = (userData) => {
-    const users = JSON.parse(localStorage.getItem('hrUsers') || '[]');
-    
-    // Check if email already exists
-    if (users.some(u => u.email === userData.email)) {
-      throw new Error('Email already exists');
+  // Save users to localStorage whenever they change
+  useEffect(() => {
+    if (users.length > 0) {
+      localStorage.setItem('hr_users', JSON.stringify(users));
+    }
+  }, [users]);
+
+  // Save current user to localStorage
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('hr_current_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('hr_current_user');
+    }
+  }, [user]);
+
+  const signup = (formData) => {
+    // Check if user already exists
+    const userExists = users.some(u => u.email === formData.email);
+    if (userExists) {
+      return { success: false, message: 'Email already registered' };
     }
 
-    // Check if employee ID already exists
-    if (users.some(u => u.employeeId === userData.employeeId)) {
-      throw new Error('Employee ID already exists');
-    }
+    const newUser = {
+      id: Date.now().toString(),
+      name: formData.name,
+      email: formData.email,
+      employeeId: formData.employeeId,
+      employeeIdCardImage: formData.employeeIdCardImage,
+      password: formData.password,
+      gender: formData.gender,
+      joiningDate: formData.joiningDate,
+      createdAt: new Date().toISOString(),
+    };
 
-    users.push(userData);
-    localStorage.setItem('hrUsers', JSON.stringify(users));
-    localStorage.setItem('hrUser', JSON.stringify(userData));
-    setUser(userData);
+    setUsers([...users, newUser]);
+    setUser(newUser);
+    return { success: true, message: 'Account created successfully' };
   };
 
   const login = (email, password) => {
-    const users = JSON.parse(localStorage.getItem('hrUsers') || '[]');
     const foundUser = users.find(u => u.email === email && u.password === password);
-
+    
     if (!foundUser) {
-      throw new Error('Invalid email or password');
+      return { success: false, message: 'Invalid email or password' };
     }
 
-    localStorage.setItem('hrUser', JSON.stringify(foundUser));
     setUser(foundUser);
+    return { success: true, message: 'Logged in successfully' };
   };
 
   const logout = () => {
-    localStorage.removeItem('hrUser');
     setUser(null);
   };
 
   const updateProfile = (updatedData) => {
-    const updated = { ...user, ...updatedData };
-    const users = JSON.parse(localStorage.getItem('hrUsers') || '[]');
-    const userIndex = users.findIndex(u => u.email === user.email);
-    if (userIndex !== -1) {
-      users[userIndex] = updated;
-      localStorage.setItem('hrUsers', JSON.stringify(users));
-    }
-    localStorage.setItem('hrUser', JSON.stringify(updated));
-    setUser(updated);
+    const updatedUser = { ...user, ...updatedData };
+    setUser(updatedUser);
+    
+    setUsers(users.map(u => 
+      u.id === user.id ? updatedUser : u
+    ));
+    
+    return { success: true, message: 'Profile updated successfully' };
   };
 
-  const resetPassword = (email, newPassword) => {
-    const users = JSON.parse(localStorage.getItem('hrUsers') || '[]');
-    const userIndex = users.findIndex(u => u.email === email);
-    if (userIndex === -1) {
-      throw new Error('User not found');
-    }
-    users[userIndex].password = newPassword;
-    localStorage.setItem('hrUsers', JSON.stringify(users));
+  const value = {
+    user,
+    users,
+    loading,
+    signup,
+    login,
+    logout,
+    updateProfile,
+    isAuthenticated: !!user,
   };
 
   return (
-    <AuthContext.Provider value={{ user, signup, login, logout, updateProfile, resetPassword, loading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

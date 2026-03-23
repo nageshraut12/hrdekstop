@@ -1,63 +1,86 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { DataContext } from '../context/DataContext';
+import React, { useState, useEffect } from 'react';
+import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 export const Feedback = () => {
-  const { employees } = useContext(DataContext);
+  const { darkMode } = useTheme();
+  const { user } = useAuth();
   const [feedbacks, setFeedbacks] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [employees] = useState([
+    { id: 1, name: 'John Doe' },
+    { id: 2, name: 'Jane Smith' },
+    { id: 3, name: 'Mike Johnson' },
+    { id: 4, name: 'Sarah Williams' },
+    { id: 5, name: 'Robert Brown' },
+  ]);
   const [formData, setFormData] = useState({
     employeeId: '',
     employeeName: '',
-    category: 'Performance',
+    department: '',
+    feedbackType: 'performance',
     rating: 5,
     comment: '',
-    isAnonymous: false
   });
-  const [filterEmployee, setFilterEmployee] = useState('');
 
+  // Load feedbacks from localStorage
   useEffect(() => {
-    const savedFeedbacks = localStorage.getItem('hrFeedbacks');
-    if (savedFeedbacks) {
-      setFeedbacks(JSON.parse(savedFeedbacks));
+    const storedFeedbacks = localStorage.getItem('hr_feedbacks');
+    if (storedFeedbacks) {
+      setFeedbacks(JSON.parse(storedFeedbacks));
     }
   }, []);
+
+  // Save feedbacks to localStorage
+  useEffect(() => {
+    if (feedbacks.length > 0) {
+      localStorage.setItem('hr_feedbacks', JSON.stringify(feedbacks));
+    }
+  }, [feedbacks]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleEmployeeSelect = (employeeId, employeeName) => {
+    setFormData(prev => ({
+      ...prev,
+      employeeId,
+      employeeName
+    }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (!formData.employeeId || !formData.comment) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
     const newFeedback = {
-      id: Date.now(),
+      id: Date.now().toString(),
       ...formData,
-      submittedBy: JSON.parse(localStorage.getItem('hrUser') || '{}').name,
-      submittedAt: new Date().toISOString()
+      givenBy: user?.name || 'Anonymous',
+      givenByEmail: user?.email || 'unknown@email.com',
+      createdAt: new Date().toISOString(),
     };
 
-    const updatedFeedbacks = [...feedbacks, newFeedback];
-    setFeedbacks(updatedFeedbacks);
-    localStorage.setItem('hrFeedbacks', JSON.stringify(updatedFeedbacks));
-
+    setFeedbacks([newFeedback, ...feedbacks]);
     setFormData({
       employeeId: '',
       employeeName: '',
-      category: 'Performance',
+      department: '',
+      feedbackType: 'performance',
       rating: 5,
       comment: '',
-      isAnonymous: false
     });
     setShowForm(false);
   };
-
-  const handleDeleteFeedback = (id) => {
-    if (window.confirm('Are you sure you want to delete this feedback?')) {
-      const updatedFeedbacks = feedbacks.filter(f => f.id !== id);
-      setFeedbacks(updatedFeedbacks);
-      localStorage.setItem('hrFeedbacks', JSON.stringify(updatedFeedbacks));
-    }
-  };
-
-  const filteredFeedbacks = filterEmployee
-    ? feedbacks.filter(f => f.employeeId === filterEmployee)
-    : feedbacks;
 
   const getRatingColor = (rating) => {
     if (rating >= 4) return 'text-green-600 dark:text-green-400';
@@ -65,198 +88,228 @@ export const Feedback = () => {
     return 'text-red-600 dark:text-red-400';
   };
 
-  const getRatingStars = (rating) => {
-    return '⭐'.repeat(Math.round(rating));
+  const getRatingBg = (rating) => {
+    if (rating >= 4) return 'bg-green-100 dark:bg-green-900';
+    if (rating >= 3) return 'bg-yellow-100 dark:bg-yellow-900';
+    return 'bg-red-100 dark:bg-red-900';
+  };
+
+  const deleteFeedback = (id) => {
+    if (window.confirm('Are you sure you want to delete this feedback?')) {
+      setFeedbacks(feedbacks.filter(f => f.id !== id));
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`p-8 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Employee Feedback</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Provide constructive feedback for your team members</p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition font-semibold"
-        >
-          {showForm ? '❌ Close' : '💬 Give Feedback'}
-        </button>
+      <div className="mb-8">
+        <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          Feedback
+        </h1>
+        <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-2`}>
+          Provide constructive feedback to your colleagues
+        </p>
       </div>
+
+      {/* Add Feedback Button */}
+      <button
+        onClick={() => setShowForm(!showForm)}
+        className="mb-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
+      >
+        {showForm ? '✕ Cancel' : '+ Give Feedback'}
+      </button>
 
       {/* Feedback Form */}
       {showForm && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Submit Feedback</h2>
+        <div className={`mb-8 p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+          <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Provide Feedback
+          </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Select Employee */}
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Select Employee</label>
-                <select
-                  value={formData.employeeId}
-                  onChange={(e) => {
-                    const emp = employees.find(e => e._id === e.target.value);
-                    setFormData({
-                      ...formData,
-                      employeeId: e.target.value,
-                      employeeName: emp?.name || ''
-                    });
-                  }}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-                  required
-                >
-                  <option value="">-- Choose an employee --</option>
-                  {employees && employees.map(emp => (
-                    <option key={emp._id} value={emp._id}>{emp.name} ({emp.position})</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Feedback Category */}
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Feedback Category</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-                >
-                  <option>Performance</option>
-                  <option>Communication</option>
-                  <option>Teamwork</option>
-                  <option>Punctuality</option>
-                  <option>Professionalism</option>
-                  <option>Leadership</option>
-                  <option>Other</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Rating */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Select Employee */}
             <div>
-              <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Rating: {getRatingStars(formData.rating)}</label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map(star => (
+              <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                Select Employee *
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                {employees.map((emp) => (
                   <button
-                    key={star}
+                    key={emp.id}
                     type="button"
-                    onClick={() => setFormData({ ...formData, rating: star })}
-                    className={`text-4xl transition ${star <= formData.rating ? 'opacity-100' : 'opacity-30'}`}
+                    onClick={() => handleEmployeeSelect(emp.id, emp.name)}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.employeeId === emp.id.toString()
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900'
+                        : darkMode
+                        ? 'border-gray-600 bg-gray-700 hover:border-blue-500'
+                        : 'border-gray-300 bg-gray-50 hover:border-blue-500'
+                    }`}
                   >
-                    ⭐
+                    <p className={`font-semibold ${
+                      formData.employeeId === emp.id.toString()
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : darkMode ? 'text-white' : 'text-gray-900'
+                    }`}>
+                      {emp.name}
+                    </p>
                   </button>
                 ))}
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Feedback Type */}
+              <div>
+                <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                  Feedback Type
+                </label>
+                <select
+                  name="feedbackType"
+                  value={formData.feedbackType}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    darkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                >
+                  <option value="performance">Performance</option>
+                  <option value="behavior">Behavior</option>
+                  <option value="teamwork">Teamwork</option>
+                  <option value="communication">Communication</option>
+                  <option value="technical">Technical Skills</option>
+                </select>
+              </div>
+
+              {/* Rating */}
+              <div>
+                <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                  Rating (1-5) *
+                </label>
+                <div className="flex gap-2 items-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, rating: star }))}
+                      className={`text-3xl cursor-pointer transition-transform ${
+                        star <= formData.rating ? 'scale-110' : 'scale-100'
+                      }`}
+                    >
+                      {star <= formData.rating ? '⭐' : '☆'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Department */}
+            <div>
+              <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                Department
+              </label>
+              <input
+                type="text"
+                name="department"
+                value={formData.department}
+                onChange={handleInputChange}
+                placeholder="e.g., HR, Finance, Sales"
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  darkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              />
+            </div>
+
             {/* Comment */}
             <div>
-              <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Feedback Comment</label>
-              <textarea
-                value={formData.comment}
-                onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
-                placeholder="Provide detailed and constructive feedback..."
-                rows="4"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-                required
-              />
-            </div>
-
-            {/* Anonymous */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="anonymous"
-                checked={formData.isAnonymous}
-                onChange={(e) => setFormData({ ...formData, isAnonymous: e.target.checked })}
-                className="w-5 h-5 rounded cursor-pointer"
-              />
-              <label htmlFor="anonymous" className="text-gray-700 dark:text-gray-300 font-semibold cursor-pointer">
-                Submit as Anonymous
+              <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                Feedback Comment *
               </label>
+              <textarea
+                name="comment"
+                value={formData.comment}
+                onChange={handleInputChange}
+                placeholder="Provide detailed feedback..."
+                rows="5"
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  darkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              />
             </div>
 
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition"
-              >
-                Submit Feedback
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-              >
-                Cancel
-              </button>
-            </div>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="w-full py-3 px-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 transition-all font-semibold"
+            >
+              Submit Feedback
+            </button>
           </form>
-        </div>
-      )}
-
-      {/* Filter */}
-      {feedbacks.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-          <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Filter by Employee</label>
-          <select
-            value={filterEmployee}
-            onChange={(e) => setFilterEmployee(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="">-- Show All Feedbacks --</option>
-            {employees && employees.map(emp => (
-              <option key={emp._id} value={emp._id}>{emp.name}</option>
-            ))}
-          </select>
         </div>
       )}
 
       {/* Feedbacks List */}
       <div className="space-y-4">
-        {filteredFeedbacks.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12 text-center border border-gray-200 dark:border-gray-700">
-            <div className="text-6xl mb-4">💬</div>
-            <p className="text-gray-600 dark:text-gray-400 text-lg">No feedback yet</p>
-            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">Start by providing constructive feedback to your team members</p>
+        {feedbacks.length === 0 ? (
+          <div className={`p-8 text-center rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              No feedback yet. Start by giving constructive feedback!
+            </p>
           </div>
         ) : (
-          filteredFeedbacks.map(feedback => (
+          feedbacks.map((feedback) => (
             <div
               key={feedback.id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition"
+              className={`p-6 rounded-lg shadow-lg ${
+                darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+              }`}
             >
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">{feedback.employeeName}</h3>
-                  <div className="flex gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    <span className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">
-                      {feedback.category}
+                  <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {feedback.employeeName}
+                  </h3>
+                  <div className="flex gap-2 items-center mt-2">
+                    <span className={`text-sm px-3 py-1 rounded-full ${
+                      darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {feedback.feedbackType}
                     </span>
-                    <span className={`font-bold ${getRatingColor(feedback.rating)}`}>
-                      {getRatingStars(feedback.rating)} {feedback.rating}/5
-                    </span>
+                    {feedback.department && (
+                      <span className={`text-sm px-3 py-1 rounded-full ${
+                        darkMode ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {feedback.department}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteFeedback(feedback.id)}
-                  className="bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 px-3 py-2 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 transition"
-                >
-                  🗑️
-                </button>
+                <div className={`text-3xl font-bold ${getRatingColor(feedback.rating)}`}>
+                  {feedback.rating}/5
+                </div>
               </div>
 
-              <p className="text-gray-700 dark:text-gray-300 mb-4">{feedback.comment}</p>
+              <p className={`mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                {feedback.comment}
+              </p>
 
-              <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
-                <span>
-                  {feedback.isAnonymous ? 'Anonymous' : `By: ${feedback.submittedBy}`}
-                </span>
-                <span>{new Date(feedback.submittedAt).toLocaleDateString()}</span>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4 flex justify-between`}>
+                <span>Given by: {feedback.givenBy}</span>
+                <span>{new Date(feedback.createdAt).toLocaleDateString()}</span>
               </div>
+
+              <button
+                onClick={() => deleteFeedback(feedback.id)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                🗑️ Delete
+              </button>
             </div>
           ))
         )}
