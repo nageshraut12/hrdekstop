@@ -66,10 +66,10 @@
 			}
 		},
 		{
-			"label": "git-push",
+			"label": "git-push-master",
 			"type": "shell",
 			"command": "git",
-			"args": ["push", "-u", "origin", "main"],
+			"args": ["push", "-u", "origin", "master"],
 			"group": "build",
 			"presentation": {
 				"echo": true,

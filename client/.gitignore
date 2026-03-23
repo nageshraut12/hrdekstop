@@ -7,3 +7,5 @@
     "outDir": "./lib"
   }
 }
+.vercel
+.env*.local
